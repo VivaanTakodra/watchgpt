@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ask</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #000;
+    color: #fff;
+    font-family: -apple-system, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.4;
+    padding: 8px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  .q {
+    color: #8e8e93;
+    font-size: 13px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #1c1c1e;
+  }
+  .a {
+    color: #fff;
+    font-size: 15px;
+  }
+  .loading {
+    color: #8e8e93;
+    font-size: 14px;
+  }
+  .error {
+    color: #ff453a;
+    font-size: 14px;
+  }
+  .help {
+    color: #8e8e93;
+    font-size: 13px;
+  }
+  .help code {
+    background: #1c1c1e;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+    word-break: break-all;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  // CHANGE THIS to your Cloudflare Worker URL after deploying it
+  const WORKER_URL = "https://YOUR-WORKER-NAME.YOUR-SUBDOMAIN.workers.dev";
+
+  const root = document.getElementById("root");
+  const params = new URLSearchParams(window.location.search);
+  const question = params.get("q");
+
+  function render(html) {
+    root.innerHTML = html;
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  if (!question) {
+    render(
+      '<div class="help">' +
+      'Add <code>?q=your+question</code> to the URL.<br><br>' +
+      'Example:<br><code>' + window.location.origin + window.location.pathname + '?q=capital+of+peru</code>' +
+      '</div>'
+    );
+  } else {
+    render('<div class="q">' + escapeHtml(question) + '</div><div class="loading">Thinking…</div>');
+
+    fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: question })
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        const answer = data.answer || "(no answer)";
+        render(
+          '<div class="q">' + escapeHtml(question) + '</div>' +
+          '<div class="a">' + escapeHtml(answer) + '</div>'
+        );
+      })
+      .catch(function (err) {
+        render(
+          '<div class="q">' + escapeHtml(question) + '</div>' +
+          '<div class="error">Error: ' + escapeHtml(err.message) + '</div>'
+        );
+      });
+  }
+</script>
+</body>
+</html>
